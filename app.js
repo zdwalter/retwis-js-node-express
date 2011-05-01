@@ -268,13 +268,11 @@ var follow = function(req, res) {
             var multi = client.multi();
             if ( parseInt(fol) ) {
                 // follow
-                console.log("going to "+user.user_id+" follow "+uid);
                 multi.sadd("retwis:uid:"+uid+":followers", user.user_id);
                 multi.sadd("retwis:uid:"+user.user_id+":following", uid);
             }
             else {
                 // stop
-                console.log("going to stop");
                 multi.srem("retwis:uid:"+uid+":followers", user.user_id);
                 multi.srem("retwis:uid:"+user.user_id+":following", uid);
             }
@@ -304,11 +302,19 @@ function register(req, res) {
                 do_error(res, "Your password does not match.");
                 return;
             }
+            var client = get_client();
             // check if username is available
+            client.get("retwis:username:"+username+":id", check_user_callback);
+
+            function check_user_callback(err, reply) {
+                var uid = reply;
+                if (uid) {
+                    client.end();
+                    return do_error(res, "Sorry, the selected username is already taken.")
+                }
 
 
             // register the user
-            var client = get_client();
             client.incr("retwis:global:nextUserId", function(err, reply) {
                     user_id = reply;
                     client.multi()
@@ -328,7 +334,8 @@ function register(req, res) {
                                 });
                             });
                         });
-                    });
+                    }); //client.incr
+            }; //check_user_callback
         }
     }
 };
@@ -336,10 +343,14 @@ function register(req, res) {
 function timeline(req, res) {
     var client = get_client();
     var last_users = [], last_posts;
-    //client.sort("retwis:global:users", 0, 10, 
-    //TODO: get last users
+    
+    return client.sort("retwis:global:users", "limit", 0, 10, "get", "retwis:uid:*:username", get_last_users_callback);
 
-    return client.lrange("retwis:global:timeline", 0, 50, get_last_post_callback);
+    function get_last_users_callback(err, users) {
+        console.log(users);
+        last_users = users;
+        return client.lrange("retwis:global:timeline", 0, 50, get_last_post_callback);
+    };
 
     function get_last_post_callback(err, reply) {
         last_posts = reply;
