@@ -85,24 +85,32 @@ function main(req, res) {
             var start = get_argument(req, 'start', 0);
             var count = get_argument(req, 'count', 10);
 
+            var client = get_client();
             // followers/following
-            var followers = 0;
-            var following = 0;
+            var followers, following;
+            client.scard("retwis:uid:"+user.user_id+":followers", get_followers_callback);
+            function get_followers_callback(err, reply) {
+                followers = reply;
+                client.scard("retwis:uid:"+user.user_id+":following", get_following_callback);
+            };
+            function get_following_callback(err, reply) {
+                following = reply;
+                client.lrange("retwis:uid:"+ user.user_id + ":posts", start, (start+count), get_posts_callback);
+            };
 
             // posts
-            var client = get_client();
-            client.lrange("retwis:uid:"+ user.user_id + ":posts", start, (start+count), function(err, reply) {
-                    var posts = reply;
-                    return load_posts(req, res, posts, function(req, res, posts) {
-                        return res.render('home', {
-                            title: 'home',
-                            user: user,
-                            posts: posts,
-                            followers: followers,
-                            following: following
-                        }); //res.render
-                    }); //load_posts
-               }); // client.lrange
+            function get_posts_callback(err, reply) {
+                var posts = reply;
+                return load_posts(req, res, posts, function(req, res, posts) {
+                    return res.render('home', {
+                        title: 'home',
+                        user: user,
+                        posts: posts,
+                        followers: followers,
+                        following: following
+                    }); //res.render
+                }); //load_posts
+            }; // get_posts_callback
         } // else
     }; //main_callback
 };
@@ -152,9 +160,12 @@ function post(req, res) {
 };
 
 function login(req, res) {
-    var current_user;
-    //TODO: get_current_user
-    if ( ! current_user ) {
+    return get_current_user(req, res, login_callback);
+    
+    function login_callback(req, res, user) {
+        if ( user ) {
+            return res.redirect("/home");
+        }
         var username = req.body.username;
         var password = req.body.password;
         if ( !username || !password ) {
@@ -180,9 +191,6 @@ function login(req, res) {
             });
         });
     }
-    else {
-        return res.redirect("/home");
-    }
 };
 
 function logout(req, res) {
@@ -207,6 +215,7 @@ function profile(req, res) {
             var member_id = reply;
             if ( !member_id ) {
                 console.log("member not found in datastore");
+                client.end();
                 return do_error(res, "User not found.");
             }
             client.sismember("retwis:uid:"+user.user_id+":following", member_id, function(err, reply) {
@@ -234,9 +243,46 @@ function profile(req, res) {
 };
 
 var follow = function(req, res) {
-  res.render('index', {
-title: 'post'
-});
+    return get_current_user(req, res, follow_callback);
+
+    function follow_callback(req, res, user) {
+        if ( !user ) {
+            return res.redirect('/home');
+        }
+        var u = get_argument(req, "u", undefined);
+        var fol = get_argument(req, "f", undefined);
+
+        if ( u == undefined || fol == undefined ) {
+            return do_error(res, "Sorry, your request could not be processed; please try again.");
+        };
+
+        var client = get_client();
+        return client.get("retwis:username:"+u+":id", get_uid_callback);
+
+        function get_uid_callback(err, reply) {
+            var uid = reply;
+            if ( !uid ) {
+                client.end();
+                return do_error(res, "Can not find this user");
+            }
+            var multi = client.multi();
+            if ( parseInt(fol) ) {
+                // follow
+                console.log("going to "+user.user_id+" follow "+uid);
+                multi.sadd("retwis:uid:"+uid+":followers", user.user_id);
+                multi.sadd("retwis:uid:"+user.user_id+":following", uid);
+            }
+            else {
+                // stop
+                console.log("going to stop");
+                multi.srem("retwis:uid:"+uid+":followers", user.user_id);
+                multi.srem("retwis:uid:"+user.user_id+":following", uid);
+            }
+            multi.exec(function(err, reply) {
+                return res.redirect("/profile?u="+u);        
+            }); //multi.exec
+        };
+    };
 };
 
 function register(req, res) {
@@ -289,8 +335,25 @@ function register(req, res) {
 
 function timeline(req, res) {
     var client = get_client();
-    client.sort("retwis:global:users", 0, 10, 
-    //FIXME:
+    var last_users = [], last_posts;
+    //client.sort("retwis:global:users", 0, 10, 
+    //TODO: get last users
+
+    return client.lrange("retwis:global:timeline", 0, 50, get_last_post_callback);
+
+    function get_last_post_callback(err, reply) {
+        last_posts = reply;
+        return load_posts(req, res, last_posts, timeline_callback);
+
+    };
+
+    function timeline_callback(req, res, posts) {
+        return res.render('timeline', {
+            title: 'timeline',
+            posts: posts,
+            users: last_users
+        });
+    };
 };
 
 function do_error(res, msg) {

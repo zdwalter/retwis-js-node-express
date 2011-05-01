@@ -1,9 +1,9 @@
 h2(class='username') #{member_name}
-- if (user.user_id != member_id) {
+- if (user.username != member_name) {
     - if ( !is_following ) {
-        a(class="button", href="/follow?uid="+member_id+"&f=1") Follow this user
+        a(class="button", href="/follow?u="+member_name+"&f=1") Follow this user
     - } else {
-        a(class="button", href="/follow?uid="+member_id+"&f=0") Stop follow
+        a(class="button", href="/follow?u="+member_name+"&f=0") Stop follow
     - }
 - }
 
