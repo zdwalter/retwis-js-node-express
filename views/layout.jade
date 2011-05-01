@@ -1,0 +1,25 @@
+!!! 5
+html(lang="en")
+  head
+    title= title
+    link(rel='stylesheet', href='/stylesheets/style.css')
+  body
+    div#page
+      div#header
+        a(href='/') 
+          img(src='/images/logo.png')
+        div#navbar
+          a(href='/home') home
+          |  |  
+          a(href='/timeline') timeline
+          - if (typeof(user) != 'undefined')
+            | |
+            a(href='/logout') logout
+
+      !{body}
+
+      div#footer
+        p
+          | This is a very simple Twitter clone written in Javascript (Node.js + Express) as example application of the 
+          a(href='http://code.google.com/p/redis/') Redis
+

@@ -1,0 +1,16 @@
+h2(class='username') #{member_name}
+- if (user.user_id != member_id) {
+    - if ( !is_following ) {
+        a(class="button", href="/follow?uid="+member_id+"&f=1") Follow this user
+    - } else {
+        a(class="button", href="/follow?uid="+member_id+"&f=0") Stop follow
+    - }
+- }
+
+- if (posts.length)
+    - posts.forEach(function(post) {
+      div(class='post')
+        a(class='username', href='/profile?u='+post.username) #{post.username}
+        | #{post.post}
+        i posted #{post.elapsed} ago via web
+    - })

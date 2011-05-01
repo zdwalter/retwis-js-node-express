@@ -1,0 +1,21 @@
+div#postform
+  form(method='post', action='/post')
+    p #{user.username}, what you are doing?
+    table
+      tr
+        td
+          textarea(cols='70', rows='3', name='status')
+      tr
+        td(align='right')
+          input(type='submit', name='doit', value='Update)
+  div#homeinfobox
+    p #{followers} followers
+    p #{following} following
+
+- if (posts.length)
+    - posts.forEach(function(post) {
+      div(class='post')
+        a(class='username', href='/profile?u='+post.username) #{post.username}
+        | #{post.post}
+        i posted #{post.elapsed} ago via web
+    - })
