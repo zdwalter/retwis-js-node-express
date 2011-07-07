@@ -16,4 +16,5 @@ Dependencies
     * Node (nodejs.org)
     * Express (expressjs.com)
     * node_redis (https://github.com/mranney/node_redis)
+    * node-uuid (npm install node-uuid)
 
